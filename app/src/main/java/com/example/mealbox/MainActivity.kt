@@ -4,13 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.mealbox.ui.*
 import com.example.mealbox.ui.theme.MealBoxTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,29 +24,50 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             MealBoxTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                MainApp()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun MainApp(viewModel: MainViewModel = viewModel()) {
+    val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MealBoxTheme {
-        Greeting("Android")
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                bottomNavItems.forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.title) },
+                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController,
+            startDestination = Screen.Planner.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Planner.route) { PlannerScreen(viewModel) }
+            composable(Screen.Library.route) { LibraryScreen(viewModel, navController) }
+            composable(Screen.AddMeal.route) { AddMealScreen(viewModel, navController) }
+            composable(Screen.ShoppingList.route) { ShoppingListScreen(viewModel) }
+            composable(Screen.Settings.route) { SettingsScreen(viewModel) }
+        }
     }
 }
